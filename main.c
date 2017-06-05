@@ -13,7 +13,7 @@ void initIO(void) {
 int main(void) {
 	initIO();
 
-	while (1) {
+    while (1) {
         PORTB |= _BV(PORTB5);
         _delay_ms(LED_BLINK_DELAY);
         PORTB &= ~ _BV(PORTB5);

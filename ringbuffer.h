@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define MAX_BUFFER_LENGTH 6
+#define MAX_BUFFER_LENGTH 32
 
 enum BUFFER_STATUS {
     BUFFER_OK,
