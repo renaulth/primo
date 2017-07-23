@@ -12,42 +12,55 @@
 #define T_CLK   PD2
 #define T_CS    PD3
 #define T_D     PD4
+#define S_TEST  PD5
+
+#define DELAY_INTERVAL 1000
 
 volatile ringbuffer_t tx_buffer = {{}, 0, 0};
 
 void init(void);
 void write_string_serial(char c[]);
 uint16_t read_temperature(void);
+void run_in_test_mode(void);
 
 int main(void) {
+    char celsius_string[10] = "";
     init();
-
+    
+    int test_mode = (PIND & (1 << S_TEST)) != 0;
+    
     while (1) {
-        // sample thermocouple
-        uint16_t sensor_value = read_temperature();
-        
-        if (sensor_value == -1) {
-            write_string_serial("Error: No sensor!\n");
+        if (test_mode) {
+            run_in_test_mode();
         }
         else {
-            float celsius = sensor_value * 0.25;
-            char celsius_string[10];
-            dtostrf(celsius, 7, 2, celsius_string);
+            // sample thermocouple
+            uint16_t sensor_value = read_temperature();
             
-            // transmit temperature
-            write_string_serial(celsius_string);
-            write_string_serial("\n");
+            if (sensor_value == -1) {
+                write_string_serial("-1\n");
+            }
+            else {
+                float celsius = sensor_value * 0.25;
+                char celsius_string[10];
+                dtostrf(celsius, 7, 2, celsius_string);
+            
+                // transmit temperature
+                write_string_serial(celsius_string);
+                write_string_serial("\n");
+            }
+            
+            _delay_ms(DELAY_INTERVAL);
         }
-        
-        _delay_ms(30 * 1000);
     }
     
     return 0;
 }
 
 void init(void) {
-    // set up thermocouple
-    DDRD = 0b00001100;
+    
+    //set up thermocouple
+    DDRD = (1 << T_CLK) | (1 << T_CS);
     
     // set initial state (CS->High, CLK->Low)
     PORTD |= _BV(T_CS);
@@ -110,5 +123,28 @@ void write_string_serial(char c[]) {
 ISR(USART_TX_vect) {
     uint8_t byte = 0;
     buffer_get(&tx_buffer, &byte);
-    UDR0 = byte;
+    // HAXX
+    if (byte != 0) {
+        UDR0 = byte;
+    }
+}
+
+void run_in_test_mode(void) {
+    char test_celsius_string[10];
+    int i;
+    
+    for (i = 30; i <= 190; i++) {
+        float celsius = i * 1.0;
+        dtostrf(celsius, 7, 2, test_celsius_string);
+        
+        // transmit temperature
+        write_string_serial(test_celsius_string);
+        write_string_serial("\n");
+        
+        if (i == 190) {
+            i = 30;
+        }
+        
+        _delay_ms(DELAY_INTERVAL);
+    }
 }
